@@ -14,10 +14,9 @@ import (
 )
 
 var (
-	httpPort       *int             // http server服务端口
-	greetingPort   *int             // greetingServer的监听端口
-	greetingAddr   *string          // greetingServer的监听地址
-	greetingServer *grpc.ClientConn // greeetingServer conn
+	httpPort     *int    // http server服务端口
+	greetingPort *int    // greetingServer的监听端口
+	greetingAddr *string // greetingServer的监听地址
 )
 
 func init() {
@@ -26,8 +25,6 @@ func init() {
 	greetingPort = flag.Int("greetingServerPort", 50050, "the port of greeting server")
 	greetingAddr = flag.String("greetingServerAddress", "localhost", "the address of greeting server")
 	flag.Parse() // 解析命令行参数
-
-	greetingServer = NewGreetingServer(fmt.Sprintf("%s:%d", *greetingAddr, *greetingPort))
 }
 
 func NewGreetingServer(addr string) *grpc.ClientConn {
@@ -44,6 +41,7 @@ func NewGreetingServer(addr string) *grpc.ClientConn {
 }
 
 func goodBye(w http.ResponseWriter, r *http.Request) {
+	greetingServer := NewGreetingServer(fmt.Sprintf("%s:%d", *greetingAddr, *greetingPort))
 	c := NewGreetingClient(greetingServer) // 初始化客户端
 
 	empty := new(emptypb.Empty)
@@ -52,12 +50,14 @@ func goodBye(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Fail to call SayBye method, err: %v", err)
 	}
 
+	greetingServer.Close()
 	fmt.Println(resp.Message)    // 打印消息
 	w.WriteHeader(http.StatusOK) // 设置响应状态码为 200
 	fmt.Fprintf(w, resp.Message) // 发送响应到客户端
 }
 
 func sayHello(w http.ResponseWriter, r *http.Request) {
+	greetingServer := NewGreetingServer(fmt.Sprintf("%s:%d", *greetingAddr, *greetingPort))
 	c := NewGreetingClient(greetingServer) // 初始化客户端
 
 	reqBody := new(HelloRequest)
@@ -67,6 +67,7 @@ func sayHello(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Fail to call SayHello method, err: %v", err)
 	}
 
+	greetingServer.Close()
 	fmt.Println(resp.Message)    // 打印消息
 	w.WriteHeader(http.StatusOK) // 设置响应状态码为 200
 	fmt.Fprintf(w, resp.Message) // 发送响应到客户端
@@ -78,5 +79,4 @@ func main() {
 	r.HandleFunc("/hello", sayHello).Methods(http.MethodGet)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), r))
-	greetingServer.Close()
 }
